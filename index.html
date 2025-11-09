@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Secret Encoder/Decoder by Pratik Mishra</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #1f2937; /* Dark background */
+            color: #f3f4f6;
+        }
+        .card {
+            background-color: #374151;
+            box-shadow: 0 10px 15px rgba(0, 0, 0, 0.2);
+        }
+        textarea {
+            resize: none;
+            min-height: 120px;
+        }
+        .btn-primary {
+            background-color: #3b82f6;
+            transition: background-color 0.2s;
+        }
+        .btn-primary:hover {
+            background-color: #2563eb;
+        }
+        .tooltip-container {
+            position: relative;
+            display: inline-block;
+        }
+        .tooltip-text {
+            visibility: hidden;
+            background-color: #1f2937;
+            color: #fff;
+            text-align: center;
+            border-radius: 6px;
+            padding: 5px 10px;
+            position: absolute;
+            z-index: 10;
+            bottom: 125%;
+            left: 50%;
+            transform: translateX(-50%);
+            white-space: nowrap;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .tooltip-container:hover .tooltip-text {
+            visibility: visible;
+            opacity: 1;
+        }
+        /* Custom scrollbar for dark mode textareas */
+        textarea::-webkit-scrollbar {
+            width: 8px;
+        }
+        textarea::-webkit-scrollbar-track {
+            background: #2563eb;
+            border-radius: 10px;
+        }
+        textarea::-webkit-scrollbar-thumb {
+            background: #3b82f6;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body class="p-4 sm:p-8">
+    <div class="max-w-3xl mx-auto">
+        <h1 class="text-5xl font-extrabold text-center mb-2 text-yellow-300">Secret Encoder/Decoder</h1>
+        <p class="text-center text-gray-300 text-lg mb-8">Encrypt, decrypt, and hide a secret message within a custom symbol sequence.</p>
+
+        <!-- Custom Modal for Alerts (replacing alert()) -->
+        <div id="messageBox" class="hidden fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
+            <div class="bg-gray-700 p-6 rounded-xl w-11/12 max-w-sm text-center">
+                <p id="messageText" class="text-lg mb-4 text-white font-semibold"></p>
+                <button onclick="document.getElementById('messageBox').classList.add('hidden')" class="btn-primary py-2 px-4 rounded-lg font-semibold w-full">OK</button>
+            </div>
+        </div>
+
+        <!-- Inputs Card -->
+        <div class="card p-6 rounded-xl space-y-6 mb-8">
+            <h2 class="text-2xl font-semibold border-b border-gray-600 pb-3 text-white">Encryption Parameters</h2>
+
+            <div class="flex flex-col sm:flex-row sm:space-x-4 space-y-4 sm:space-y-0">
+                <!-- Shift Key -->
+                <div class="w-full sm:w-1/2">
+                    <label for="shiftKey" class="block text-sm font-medium text-gray-400 mb-1">Shift Key (0-999)</label>
+                    <!-- Default value set to 17 for example -->
+                    <input type="number" id="shiftKey" value="17" min="0" max="999" class="w-full p-3 rounded-lg bg-gray-600 border border-gray-500 focus:ring-blue-500 focus:border-blue-500 text-white" placeholder="e.g., 17">
+                    <p class="text-xs text-gray-500 mt-1">Controls the <strong>main cipher strength</strong> (Polyalphabetic Shift).</p>
+                </div>
+
+                <!-- Hidden Symbol Sequence -->
+                <div class="w-full sm:w-1/2">
+                    <label for="hiddenSymbol" class="block text-sm font-medium text-gray-400 mb-1">Hidden Symbol Sequence</label>
+                    <!-- Default value set to 🔒OK for example -->
+                    <input type="text" id="hiddenSymbol" value="🔒OK" class="w-full p-3 rounded-lg bg-gray-600 border border-gray-500 focus:ring-blue-500 focus:border-blue-500 text-white" placeholder="e.g., 🔑🍎 or [SEAL]">
+                    <p class="text-xs text-gray-500 mt-1">The <strong>marker sequence</strong> used to hide/reveal the secret.</p>
+                </div>
+            </div>
+
+            <!-- Secret Message Input -->
+            <div>
+                <label for="secretMessage" class="block text-sm font-medium text-gray-400 mb-1">Secret Message (To be hidden)</label>
+                <!-- Default message for demonstration -->
+                <textarea id="secretMessage" class="w-full p-3 rounded-lg bg-gray-600 border border-gray-500 focus:ring-blue-500 focus:border-blue-500 text-white" placeholder="The meeting is at 2 PM in Room 7."></textarea>
+                <p class="text-xs text-gray-500 mt-1">This message is <strong>Base64-encoded</strong> (obfuscated) and appended after the marker.</p>
+            </div>
+        </div>
+
+        <!-- Main Input/Output Card -->
+        <div class="card p-6 rounded-xl space-y-6">
+            <h2 class="text-2xl font-semibold border-b border-gray-600 pb-3 text-white">Main Message Area</h2>
+
+            <!-- Input Message -->
+            <div>
+                <label for="inputMessage" class="block text-sm font-medium text-gray-400 mb-1">Input Message</label>
+                <textarea id="inputMessage" class="w-full p-3 rounded-lg bg-gray-600 border border-gray-500 focus:ring-blue-500 focus:border-blue-500 text-white" placeholder="Type your main message here..."></textarea>
+            </div>
+
+            <!-- Actions -->
+            <div class="flex flex-col space-y-4 sm:flex-row sm:space-y-0 sm:space-x-4">
+                <button onclick="handleEncode()" class="btn-primary flex-1 py-3 rounded-lg font-bold text-lg">
+                    Encode & Hide Secret
+                </button>
+                <button onclick="handleDecode()" class="bg-red-500 hover:bg-red-600 flex-1 py-3 rounded-lg font-bold text-lg transition-colors text-white">
+                    Decode & Reveal Secret
+                </button>
+            </div>
+
+            <!-- Output Message -->
+            <div>
+                <div class="flex justify-between items-center mb-1">
+                    <label for="outputMessage" class="block text-sm font-medium text-gray-400">Output / Decrypted Message</label>
+                    <div class="tooltip-container">
+                        <button onclick="copyToClipboard('outputMessage')" class="text-blue-400 hover:text-blue-300 text-sm">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline-block" viewBox="0 0 20 20" fill="currentColor">
+                                <path d="M7 9a2 2 0 012-2h6a2 2 0 012 2v6a2 2 0 01-2 2H9a2 2 0 01-2-2V9z" />
+                                <path d="M5 3a2 2 0 00-2 2v6a2 2 0 002 2V5h8a2 2 0 00-2-2H5z" />
+                            </svg>
+                        </button>
+                        <span class="tooltip-text">Copy</span>
+                    </div>
+                </div>
+                <textarea id="outputMessage" readonly class="w-full p-3 rounded-lg bg-gray-700 border border-gray-500 text-white cursor-default"></textarea>
+            </div>
+
+            <!-- Revealed Secret -->
+            <div id="revealedSecretContainer" class="hidden">
+                <label for="revealedSecret" class="block text-sm font-bold text-yellow-300 mb-1"><strong>REVEALED SECRET MESSAGE</strong></label>
+                <textarea id="revealedSecret" readonly class="w-full p-3 rounded-lg bg-yellow-900 border border-yellow-700 text-yellow-100 cursor-default font-mono"></textarea>
+            </div>
+        </div>
+
+        <p class="text-center text-gray-500 text-sm mt-8"><strong>Disclaimer:</strong> This is a demonstration of cryptographic and steganographic principles. It is <strong>not</strong> suitable for securing highly sensitive information.</p>
+        <!-- Creator Credit -->
+        <p class="text-center text-gray-400 text-sm mt-2 font-semibold">Created by Pratik Mishra</p>
+    </div>
+
+    <script>
+        // Global utility function for showing modal messages (replaces alert())
+        function showMessage(text) {
+            document.getElementById('messageText').textContent = text;
+            document.getElementById('messageBox').classList.remove('hidden');
+        }
+
+        // --- CORE CIPHER LOGIC (Polyalphabetic Shift) ---
+        // Shifts characters based on their ASCII code (32-126 range)
+        function shiftCipher(text, shift, direction) {
+            shift = (shift * direction) % 95; // 95 printable characters (ASCII 32 to 126)
+            
+            return text.split('').map(char => {
+                const code = char.charCodeAt(0);
+                
+                // Only operate on common printable ASCII characters (32 to 126)
+                if (code >= 32 && code <= 126) {
+                    let shiftedCode = code - 32; // Normalize to 0-94 range
+                    shiftedCode = (shiftedCode + shift);
+
+                    // Handle wrap-around for both directions
+                    if (shiftedCode < 0) {
+                        shiftedCode += 95;
+                    } else {
+                        shiftedCode %= 95;
+                    }
+
+                    return String.fromCharCode(shiftedCode + 32); // Denormalize back to 32-126 range
+                }
+                return char; // Return non-ASCII/emojis/etc. unshifted
+            }).join('');
+        }
+
+        // --- ENCODE HANDLER ---
+        function handleEncode() {
+            try {
+                const mainMessage = document.getElementById('inputMessage').value.trim();
+                const secretMessage = document.getElementById('secretMessage').value.trim();
+                const shiftKey = parseInt(document.getElementById('shiftKey').value.trim());
+                const hiddenSymbol = document.getElementById('hiddenSymbol').value.trim(); // Reads the full sequence
+
+                // Input validation
+                if (!mainMessage) {
+                    return showMessage("Error: The Main Message field cannot be empty.");
+                }
+                if (isNaN(shiftKey) || shiftKey < 0) {
+                    return showMessage("Error: Please enter a valid numerical Shift Key (0 or greater).");
+                }
+                if (!hiddenSymbol) {
+                    return showMessage("Error: Please provide a Hidden Symbol sequence to act as the secret marker.");
+                }
+
+                // 1. Encrypt the Main Message
+                const encodedMain = shiftCipher(mainMessage, shiftKey, 1);
+
+                let finalMessage = encodedMain;
+
+                if (secretMessage) {
+                    // 2. Base64 encode the Secret Message (Obfuscation)
+                    const encodedSecretPayload = btoa(secretMessage);
+
+                    // 3. Combine: Main Encoded + Symbol SEQUENCE + Secret Payload
+                    finalMessage = `${encodedMain}${hiddenSymbol}${encodedSecretPayload}`;
+                }
+
+                document.getElementById('outputMessage').value = finalMessage;
+                showMessage("Success! Message encoded and secret hidden. Copy the Output Message now.");
+
+            } catch (error) {
+                console.error("Encoding error:", error);
+                showMessage("An unexpected error occurred during encoding. Check console for details.");
+            }
+        }
+
+        // --- DECODE HANDLER ---
+        function handleDecode() {
+            try {
+                const input = document.getElementById('inputMessage').value;
+                const shiftKey = parseInt(document.getElementById('shiftKey').value.trim());
+                const hiddenSymbol = document.getElementById('hiddenSymbol').value.trim();
+                
+                // Clear previous secret reveal and hide container
+                document.getElementById('revealedSecretContainer').classList.add('hidden');
+                document.getElementById('revealedSecret').value = "";
+
+                // Input validation
+                if (!input) {
+                     return showMessage("Error: The Input Message field cannot be empty for decoding.");
+                }
+                if (isNaN(shiftKey) || shiftKey < 0) {
+                    return showMessage("Error: Please enter the correct numerical Shift Key.");
+                }
+                if (!hiddenSymbol) {
+                    return showMessage("Error: Please provide the exact Hidden Symbol sequence used for encoding.");
+                }
+
+                const symbolIndex = input.indexOf(hiddenSymbol);
+                let mainEncodedPart = input;
+                let secretPayload = null;
+                let messageToDisplay = "Message successfully decrypted! No hidden secret marker was found.";
+
+                // Check if the symbol sequence is present
+                if (symbolIndex !== -1 && hiddenSymbol.length > 0) {
+                    // Symbol SEQUENCE found, separate the parts
+                    mainEncodedPart = input.substring(0, symbolIndex);
+                    secretPayload = input.substring(symbolIndex + hiddenSymbol.length);
+                }
+                
+                // 1. Decrypt the Main Message
+                const decodedMain = shiftCipher(mainEncodedPart, shiftKey, -1);
+                document.getElementById('outputMessage').value = decodedMain;
+
+                // 2. Reveal the Secret (if payload exists)
+                if (secretPayload && secretPayload.length > 0) {
+                    try {
+                        const decodedSecret = atob(secretPayload);
+                        document.getElementById('revealedSecret').value = decodedSecret;
+                        document.getElementById('revealedSecretContainer').classList.remove('hidden');
+                        messageToDisplay = "Success! Message decrypted and <strong>secret revealed</strong> from the hidden sequence!";
+                    } catch (e) {
+                        // Base64 decoding failed (corrupted payload or wrong symbol)
+                        document.getElementById('revealedSecret').value = "Error: Secret payload was corrupted or not valid Base64.";
+                        document.getElementById('revealedSecretContainer').classList.remove('hidden');
+                        messageToDisplay = "Warning! Message decrypted, but the secret payload was <strong>unreadable</strong>. Check the symbol sequence and key.";
+                    }
+                }
+                
+                showMessage(messageToDisplay);
+
+            } catch (error) {
+                console.error("Decoding error:", error);
+                showMessage("An unexpected error occurred during decoding. Check console for details.");
+            }
+        }
+
+        // --- UTILITY: Copy to Clipboard ---
+        function copyToClipboard(elementId) {
+            const element = document.getElementById(elementId);
+            element.select();
+            element.setSelectionRange(0, 99999); // For mobile devices
+
+            try {
+                // Use execCommand for broader compatibility in sandboxed environments
+                const successful = document.execCommand('copy');
+                if (successful) {
+                    showMessage("Copied to clipboard!");
+                } else {
+                    showMessage("Copy failed. Please manually copy the text.");
+                }
+            } catch (err) {
+                console.error('Fallback: Copy failed', err);
+                showMessage("Copy failed. Please manually copy the text.");
+            }
+        }
+    </script>
+</body>
+</html>
+
